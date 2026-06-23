@@ -75,7 +75,7 @@ jobs:
       - name: Install build tools
         run: |
           apt update
-          apt install -y git make golang file
+          apt install -y git make golang file jq
       - name: Clone minio
         run: |
           git clone https://github.com/minio/minio.git minio
@@ -197,13 +197,30 @@ jobs:
             --output type=docker,dest="${{ env.OUTDIR }}/minio-loong64-${{ env.MINIO_BRANCH }}-anolis.tar" \
             .
           echo "=== Built Anolis image ==="
-          ls -lh "${{ env.OUTDIR }}/minio-loong64-${{ env.MINIO_BRANCH }}-anolis.tar"
+          TAR_FILE="${{ env.OUTDIR }}/minio-loong64-${{ env.MINIO_BRANCH }}-anolis.tar"
+          ls -lh "${TAR_FILE}"
+          echo "=== Inspect tar contents ==="
+          tar -tf "${TAR_FILE}"
+          echo "=== Manifest ==="
+          echo "--- repositories ---"
+          tar -xOf "${TAR_FILE}" repositories | jq
+          echo "--- manifest.json ---"
+          tar -xOf "${TAR_FILE}" manifest.json | jq
+          echo "--- index.json ---"
+          tar -xOf "${TAR_FILE}" index.json | jq
+          echo "--- oci-layout ---"
+          tar -xOf "${TAR_FILE}" oci-layout | jq
+          echo "--- config ---"
+          CONFIG_PATH=$(tar -xOf "${TAR_FILE}" manifest.json | jq -r '.[0].Config')
+          tar -xOf "${TAR_FILE}" "${CONFIG_PATH}" | jq
+          echo "--- os, architecture ---"
+          tar -xOf "${TAR_FILE}" "${CONFIG_PATH}" | jq '{os, architecture}'
       - name: Upload Docker image (Anolis)
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: minio-loong64-docker-image-anolis
           path: |
-            docker-images/minio-loong64-${{ env.MINIO_BRANCH }}-anolis.tar
+            ${{ env.OUTDIR }}/minio-loong64-${{ env.MINIO_BRANCH }}-anolis.tar
       - name: Build and export Docker image (Debian)
         working-directory: minio
         run: |
@@ -216,13 +233,30 @@ jobs:
             --output type=docker,dest="${{ env.OUTDIR }}/minio-loong64-${{ env.MINIO_BRANCH }}-debian.tar" \
             .
           echo "=== Built Debian image ==="
-          ls -lh "${{ env.OUTDIR }}/minio-loong64-${{ env.MINIO_BRANCH }}-debian.tar"
+          TAR_FILE="${{ env.OUTDIR }}/minio-loong64-${{ env.MINIO_BRANCH }}-debian.tar"
+          ls -lh "${TAR_FILE}"
+          echo "=== Inspect tar contents ==="
+          tar -tf "${TAR_FILE}"
+          echo "=== Manifest ==="
+          echo "--- repositories ---"
+          tar -xOf "${TAR_FILE}" repositories | jq
+          echo "--- manifest.json ---"
+          tar -xOf "${TAR_FILE}" manifest.json | jq
+          echo "--- index.json ---"
+          tar -xOf "${TAR_FILE}" index.json | jq
+          echo "--- oci-layout ---"
+          tar -xOf "${TAR_FILE}" oci-layout | jq
+          echo "--- config ---"
+          CONFIG_PATH=$(tar -xOf "${TAR_FILE}" manifest.json | jq -r '.[0].Config')
+          tar -xOf "${TAR_FILE}" "${CONFIG_PATH}" | jq
+          echo "--- os, architecture ---"
+          tar -xOf "${TAR_FILE}" "${CONFIG_PATH}" | jq '{os, architecture}'
       - name: Upload Docker image (Debian)
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: minio-loong64-docker-image-debian
           path: |
-            docker-images/minio-loong64-${{ env.MINIO_BRANCH }}-debian.tar
+            ${{ env.OUTDIR }}/minio-loong64-${{ env.MINIO_BRANCH }}-debian.tar
       - name: Build and export Docker image (Debian Slim)
         working-directory: minio
         run: |
@@ -235,13 +269,30 @@ jobs:
             --output type=docker,dest="${{ env.OUTDIR }}/minio-loong64-${{ env.MINIO_BRANCH }}-debian-slim.tar" \
             .
           echo "=== Built Debian Slim image ==="
-          ls -lh "${{ env.OUTDIR }}/minio-loong64-${{ env.MINIO_BRANCH }}-debian-slim.tar"
+          TAR_FILE="${{ env.OUTDIR }}/minio-loong64-${{ env.MINIO_BRANCH }}-debian-slim.tar"
+          ls -lh "${TAR_FILE}"
+          echo "=== Inspect tar contents ==="
+          tar -tf "${TAR_FILE}"
+          echo "=== Manifest ==="
+          echo "--- repositories ---"
+          tar -xOf "${TAR_FILE}" repositories | jq
+          echo "--- manifest.json ---"
+          tar -xOf "${TAR_FILE}" manifest.json | jq
+          echo "--- index.json ---"
+          tar -xOf "${TAR_FILE}" index.json | jq
+          echo "--- oci-layout ---"
+          tar -xOf "${TAR_FILE}" oci-layout | jq
+          echo "--- config ---"
+          CONFIG_PATH=$(tar -xOf "${TAR_FILE}" manifest.json | jq -r '.[0].Config')
+          tar -xOf "${TAR_FILE}" "${CONFIG_PATH}" | jq
+          echo "--- os, architecture ---"
+          tar -xOf "${TAR_FILE}" "${CONFIG_PATH}" | jq '{os, architecture}'
       - name: Upload Docker image (Debian Slim)
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: minio-loong64-docker-image-debian-slim
           path: |
-            docker-images/minio-loong64-${{ env.MINIO_BRANCH }}-debian-slim.tar
+            ${{ env.OUTDIR }}/minio-loong64-${{ env.MINIO_BRANCH }}-debian-slim.tar
       - name: Export system version
         run: |
           cat /etc/os-release > /tmp/build-os-release.txt
