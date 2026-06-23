@@ -423,6 +423,14 @@ jobs:
           docker load -i minio-loong64-${{ needs.build.outputs.MINIO_BRANCH }}-debian-slim.tar
           ```
 
+          ## Pull from Docker Hub
+
+          ```shell
+          docker pull ${{ env.NAMESPACE }}/minio-loong64:${{ needs.build.outputs.MINIO_BRANCH }}-anolis
+          docker pull ${{ env.NAMESPACE }}/minio-loong64:${{ needs.build.outputs.MINIO_BRANCH }}-debian
+          docker pull ${{ env.NAMESPACE }}/minio-loong64:${{ needs.build.outputs.MINIO_BRANCH }}-debian-slim
+          ```
+
           ## Verifying releases
 
           ```shell
