@@ -25,6 +25,7 @@ jobs:
       MINIO_REF: 7aac2a2
       MC_BRANCH: 2025-11-06T16-25-29Z
       MC_REF: 77f82e1
+      OUTDIR: "${{ github.workspace }}/docker-images"
     outputs:
       RAW_VERSION: ${{ steps.extract.outputs.RAW_VERSION }}
       MINIO_BRANCH: ${{ steps.extract.outputs.MINIO_BRANCH }}
@@ -180,27 +181,67 @@ jobs:
       - name: Copy mc binary for Docker build
         run: |
           cp mc/mc minio/mc
-      - name: Build image
+      - name: Set up buildx builder
+        run: |
+          docker buildx create --use --name loong64-builder --driver docker-container
+          docker buildx inspect --bootstrap
+      - name: Build and export Docker image (Anolis)
         working-directory: minio
         run: |
+          mkdir -p "${{ env.OUTDIR }}"
           docker buildx build --no-cache \
             --build-arg RELEASE="${{ env.MINIO_BRANCH }}" \
             --build-arg BASE_IMAGE="${{ env.ANOLIS_IMAGE }}:${{ env.ANOLIS_TAG }}" \
-            -t "${{ env.NAMESPACE }}/minio-loong64:${{ env.MINIO_BRANCH }}-anolis" \
             --platform=linux/loong64 \
-            -f Dockerfile.release .
+            -f Dockerfile.release \
+            --output type=docker,dest="${{ env.OUTDIR }}/minio-loong64-${{ env.MINIO_BRANCH }}-anolis.tar" \
+            .
+          echo "=== Built Anolis image ==="
+          ls -lh "${{ env.OUTDIR }}/minio-loong64-${{ env.MINIO_BRANCH }}-anolis.tar"
+      - name: Upload Docker image (Anolis)
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: minio-loong64-docker-image-anolis
+          path: |
+            docker-images/minio-loong64-${{ env.MINIO_BRANCH }}-anolis.tar
+      - name: Build and export Docker image (Debian)
+        working-directory: minio
+        run: |
+          mkdir -p "${{ env.OUTDIR }}"
           docker buildx build --no-cache \
             --build-arg RELEASE="${{ env.MINIO_BRANCH }}" \
             --build-arg BASE_IMAGE="${{ env.DEBIAN_IMAGE }}:${{ env.DEBIAN_TAG }}" \
-            -t "${{ env.NAMESPACE }}/minio-loong64:${{ env.MINIO_BRANCH }}-debian" \
             --platform=linux/loong64 \
-            -f Dockerfile.release .
+            -f Dockerfile.release \
+            --output type=docker,dest="${{ env.OUTDIR }}/minio-loong64-${{ env.MINIO_BRANCH }}-debian.tar" \
+            .
+          echo "=== Built Debian image ==="
+          ls -lh "${{ env.OUTDIR }}/minio-loong64-${{ env.MINIO_BRANCH }}-debian.tar"
+      - name: Upload Docker image (Debian)
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: minio-loong64-docker-image-debian
+          path: |
+            docker-images/minio-loong64-${{ env.MINIO_BRANCH }}-debian.tar
+      - name: Build and export Docker image (Debian Slim)
+        working-directory: minio
+        run: |
+          mkdir -p "${{ env.OUTDIR }}"
           docker buildx build --no-cache \
             --build-arg RELEASE="${{ env.MINIO_BRANCH }}" \
             --build-arg BASE_IMAGE="${{ env.DEBIAN_IMAGE }}:${{ env.DEBIAN_TAG_SLIM }}" \
-            -t "${{ env.NAMESPACE }}/minio-loong64:${{ env.MINIO_BRANCH }}-debian-slim" \
             --platform=linux/loong64 \
-            -f Dockerfile.release .
+            -f Dockerfile.release \
+            --output type=docker,dest="${{ env.OUTDIR }}/minio-loong64-${{ env.MINIO_BRANCH }}-debian-slim.tar" \
+            .
+          echo "=== Built Debian Slim image ==="
+          ls -lh "${{ env.OUTDIR }}/minio-loong64-${{ env.MINIO_BRANCH }}-debian-slim.tar"
+      - name: Upload Docker image (Debian Slim)
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: minio-loong64-docker-image-debian-slim
+          path: |
+            docker-images/minio-loong64-${{ env.MINIO_BRANCH }}-debian-slim.tar
       - name: Export system version
         run: |
           cat /etc/os-release > /tmp/build-os-release.txt
@@ -237,6 +278,21 @@ jobs:
         with:
           name: minio-loong64-system-info
           path: loong64-artifacts
+      - name: Download Docker image (Anolis)
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: minio-loong64-docker-image-anolis
+          path: loong64-artifacts
+      - name: Download Docker image (Debian)
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: minio-loong64-docker-image-debian
+          path: loong64-artifacts
+      - name: Download Docker image (Debian Slim)
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: minio-loong64-docker-image-debian-slim
+          path: loong64-artifacts
       - name: List release artifacts
         run: |
           find loong64-artifacts -type f
@@ -256,25 +312,53 @@ jobs:
         run: |
           cat > release-body.md <<'BODYEOF'
           ## Artifacts
-          
+
+          ### Binaries
+
           | File    | Download                           |
           |---------|------------------------------------|
           | `minio` | [minio](${{ env.BASE_URL }}/minio) |
           | `mc`    | [mc](${{ env.BASE_URL }}/mc)       |
 
+          ### Docker Images
+
+          | Base Image           | Download                                                                                                                                         |
+          |----------------------|--------------------------------------------------------------------------------------------------------------------------------------------------|
+          | Anolis OS 23.4       | [minio-loong64-${{ needs.build.outputs.MINIO_BRANCH }}-anolis.tar](${{ env.BASE_URL }}/minio-loong64-${{ needs.build.outputs.MINIO_BRANCH }}-anolis.tar)           |
+          | Debian 14            | [minio-loong64-${{ needs.build.outputs.MINIO_BRANCH }}-debian.tar](${{ env.BASE_URL }}/minio-loong64-${{ needs.build.outputs.MINIO_BRANCH }}-debian.tar)           |
+          | Debian 14 Slim       | [minio-loong64-${{ needs.build.outputs.MINIO_BRANCH }}-debian-slim.tar](${{ env.BASE_URL }}/minio-loong64-${{ needs.build.outputs.MINIO_BRANCH }}-debian-slim.tar) |
+
           Each file has a corresponding `.asc` detached GPG signature.
-          
+
           ```shell
-          # Binary
+          # Binaries
           curl -LO ${{ env.BASE_URL }}/minio
           curl -LO ${{ env.BASE_URL }}/minio.asc
-          
+
           curl -LO ${{ env.BASE_URL }}/mc
           curl -LO ${{ env.BASE_URL }}/mc.asc
+
+          # Docker Images
+          curl -LO ${{ env.BASE_URL }}/minio-loong64-${{ needs.build.outputs.MINIO_BRANCH }}-anolis.tar
+          curl -LO ${{ env.BASE_URL }}/minio-loong64-${{ needs.build.outputs.MINIO_BRANCH }}-anolis.tar.asc
+
+          curl -LO ${{ env.BASE_URL }}/minio-loong64-${{ needs.build.outputs.MINIO_BRANCH }}-debian.tar
+          curl -LO ${{ env.BASE_URL }}/minio-loong64-${{ needs.build.outputs.MINIO_BRANCH }}-debian.tar.asc
+
+          curl -LO ${{ env.BASE_URL }}/minio-loong64-${{ needs.build.outputs.MINIO_BRANCH }}-debian-slim.tar
+          curl -LO ${{ env.BASE_URL }}/minio-loong64-${{ needs.build.outputs.MINIO_BRANCH }}-debian-slim.tar.asc
           ```
-          
+
+          ## Loading Docker images
+
+          ```shell
+          docker load -i minio-loong64-${{ needs.build.outputs.MINIO_BRANCH }}-anolis.tar
+          docker load -i minio-loong64-${{ needs.build.outputs.MINIO_BRANCH }}-debian.tar
+          docker load -i minio-loong64-${{ needs.build.outputs.MINIO_BRANCH }}-debian-slim.tar
+          ```
+
           ## Verifying releases
-          
+
           ```shell
           gpg --keyserver keys.openpgp.org --recv-keys FCF8724722CCBF9F51B1FBE376532BE7E3013105
           echo "FCF8724722CCBF9F51B1FBE376532BE7E3013105:6:" | gpg --import-ownertrust
