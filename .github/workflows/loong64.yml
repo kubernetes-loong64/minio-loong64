@@ -9,6 +9,14 @@ on:
     branches:
       - loong64-*
 
+env:
+  NAMESPACE: ${{ vars.NAMESPACE || 'kubernetesloong64' }}
+  DEBIAN_IMAGE: lcr.loongnix.cn/library/debian
+  DEBIAN_TAG: 14
+  DEBIAN_TAG_SLIM: 14-slim
+  ANOLIS_IMAGE: openanolis/anolisos
+  ANOLIS_TAG: 23.4
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -125,9 +133,6 @@ jobs:
           ls -la /run/docker.sock 2>/dev/null || echo "/run/docker.sock not found"
           echo "DOCKER_HOST=$DOCKER_HOST"
           docker info
-      #- name: Apply patches
-      #  working-directory: minio
-      #  run: git apply ../*.patch
       - name: Build minio
         working-directory: minio
         env:
@@ -169,6 +174,33 @@ jobs:
         run: |
           ./mc -v
           ./mc -h
+      - name: Apply patches
+        working-directory: minio
+        run: git apply ../*.patch
+      - name: Copy mc binary for Docker build
+        run: |
+          cp mc/mc minio/mc
+      - name: Build image
+        working-directory: minio
+        run: |
+          docker buildx build --no-cache \
+            --build-arg RELEASE="${{ env.MINIO_BRANCH }}" \
+            --build-arg BASE_IMAGE="${{ env.ANOLIS_IMAGE }}:${{ env.ANOLIS_TAG }}" \
+            -t "${{ env.NAMESPACE }}/minio-loong64:${{ env.MINIO_BRANCH }}-anolis" \
+            --platform=linux/loong64 \
+            -f Dockerfile.release .
+          docker buildx build --no-cache \
+            --build-arg RELEASE="${{ env.MINIO_BRANCH }}" \
+            --build-arg BASE_IMAGE="${{ env.DEBIAN_IMAGE }}:${{ env.DEBIAN_TAG }}" \
+            -t "${{ env.NAMESPACE }}/minio-loong64:${{ env.MINIO_BRANCH }}-debian" \
+            --platform=linux/loong64 \
+            -f Dockerfile.release .
+          docker buildx build --no-cache \
+            --build-arg RELEASE="${{ env.MINIO_BRANCH }}" \
+            --build-arg BASE_IMAGE="${{ env.DEBIAN_IMAGE }}:${{ env.DEBIAN_TAG_SLIM }}" \
+            -t "${{ env.NAMESPACE }}/minio-loong64:${{ env.MINIO_BRANCH }}-debian-slim" \
+            --platform=linux/loong64 \
+            -f Dockerfile.release .
       - name: Export system version
         run: |
           cat /etc/os-release > /tmp/build-os-release.txt
