@@ -15,6 +15,8 @@ jobs:
     container: debian:13
     env:
       MINIO_REF: 7aac2a2
+      MC_BRANCH: 2025-11-06T16-25-29Z
+      MC_REF: 77f82e1
     outputs:
       RAW_VERSION: ${{ steps.extract.outputs.RAW_VERSION }}
       MINIO_BRANCH: ${{ steps.extract.outputs.MINIO_BRANCH }}
@@ -81,6 +83,22 @@ jobs:
             echo "❌ MINIO_REF_DATE (${{ env.MINIO_REF_DATE }}) does NOT match MINIO_BRANCH (${{ env.MINIO_BRANCH }})"
             exit 1
           fi
+      - name: Clone mc
+        run: |
+          git clone https://github.com/minio/mc.git mc
+          cd mc
+          git checkout ${{ env.MC_REF }}
+          MC_REF_DATE=$(git log -1 --format=%ct | xargs -I{} date -u -d @{} +%Y-%m-%dT%H-%M-%SZ)
+          echo "MC_REF_DATE=$MC_REF_DATE"
+          echo "MC_REF_DATE=$MC_REF_DATE" >> ${GITHUB_ENV}
+      - name: Validate mc version
+        run: |
+          if [ "${{ env.MC_REF_DATE }}" = "${{ env.MC_BRANCH }}" ]; then
+            echo "✅ MC_REF_DATE (${{ env.MC_REF_DATE }}) matches MC_BRANCH (${{ env.MC_BRANCH }})"
+          else
+            echo "❌ MC_REF_DATE (${{ env.MC_REF_DATE }}) does NOT match MC_BRANCH (${{ env.MC_BRANCH }})"
+            exit 1
+          fi
       - name: ls
         run: ls -lah
       - name: Install Docker CLI
@@ -116,29 +134,41 @@ jobs:
           GOOS: linux
           GOARCH: loong64
         run: make
+      - name: Build mc
+        working-directory: mc
+        env:
+          GOOS: linux
+          GOARCH: loong64
+        run: make
       - name: Print binary SHA-256 checksums
-        working-directory: minio
         run: |
-          find minio | xargs sha256sum
+          find minio/minio | xargs sha256sum
+          find mc/mc | xargs sha256sum
       - name: Inspect binary file types
-        working-directory: minio
         run: |
           echo "=== bin ==="
-          file minio
+          file minio/minio
+          file mc/mc
       - name: Upload binaries
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: minio-loong64-binaries
           path: |
             minio/minio
+            mc/mc
       - name: Install QEMU binfmt for loong64
         run: |
           docker run --privileged --rm ghcr.io/loong64/binfmt --install all
-      - name: Print docker version
+      - name: Print minio version
         working-directory: minio
         run: |
           ./minio -v
           ./minio -h
+      - name: Print mc version
+        working-directory: mc
+        run: |
+          ./mc -v
+          ./mc -h
       - name: Export system version
         run: |
           cat /etc/os-release > /tmp/build-os-release.txt
@@ -198,6 +228,7 @@ jobs:
           | File    | Download                           |
           |---------|------------------------------------|
           | `minio` | [minio](${{ env.BASE_URL }}/minio) |
+          | `mc`    | [mc](${{ env.BASE_URL }}/mc)       |
 
           Each file has a corresponding `.asc` detached GPG signature.
           
@@ -205,6 +236,9 @@ jobs:
           # Binary
           curl -LO ${{ env.BASE_URL }}/minio
           curl -LO ${{ env.BASE_URL }}/minio.asc
+          
+          curl -LO ${{ env.BASE_URL }}/mc
+          curl -LO ${{ env.BASE_URL }}/mc.asc
           ```
           
           ## Verifying releases
