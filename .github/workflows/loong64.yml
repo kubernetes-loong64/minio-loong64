@@ -25,7 +25,6 @@ jobs:
       MINIO_REF: 7aac2a2
       MC_BRANCH: 2025-11-06T16-25-29Z
       MC_REF: 77f82e1
-      OUTDIR: "${{ github.workspace }}/docker-images"
     outputs:
       RAW_VERSION: ${{ steps.extract.outputs.RAW_VERSION }}
       MINIO_BRANCH: ${{ steps.extract.outputs.MINIO_BRANCH }}
@@ -188,16 +187,15 @@ jobs:
       - name: Build and export Docker image (Anolis)
         working-directory: minio
         run: |
-          mkdir -p "${{ env.OUTDIR }}"
           docker buildx build --no-cache \
             --build-arg RELEASE="${{ env.MINIO_BRANCH }}" \
             --build-arg BASE_IMAGE="${{ env.ANOLIS_IMAGE }}:${{ env.ANOLIS_TAG }}" \
             --platform=linux/loong64 \
             -f Dockerfile.release \
-            --output type=docker,dest="${{ env.OUTDIR }}/minio-loong64-${{ env.MINIO_BRANCH }}-anolis.tar" \
+            --output type=docker,dest="minio-loong64-${{ env.MINIO_BRANCH }}-anolis.tar" \
             .
           echo "=== Built Anolis image ==="
-          TAR_FILE="${{ env.OUTDIR }}/minio-loong64-${{ env.MINIO_BRANCH }}-anolis.tar"
+          TAR_FILE="minio-loong64-${{ env.MINIO_BRANCH }}-anolis.tar"
           ls -lh "${TAR_FILE}"
           echo "=== Inspect tar contents ==="
           tar -tf "${TAR_FILE}"
@@ -220,20 +218,19 @@ jobs:
         with:
           name: minio-loong64-docker-image-anolis
           path: |
-            ${{ env.OUTDIR }}/minio-loong64-${{ env.MINIO_BRANCH }}-anolis.tar
+            minio/minio-loong64-${{ env.MINIO_BRANCH }}-anolis.tar
       - name: Build and export Docker image (Debian)
         working-directory: minio
         run: |
-          mkdir -p "${{ env.OUTDIR }}"
           docker buildx build --no-cache \
             --build-arg RELEASE="${{ env.MINIO_BRANCH }}" \
             --build-arg BASE_IMAGE="${{ env.DEBIAN_IMAGE }}:${{ env.DEBIAN_TAG }}" \
             --platform=linux/loong64 \
             -f Dockerfile.release \
-            --output type=docker,dest="${{ env.OUTDIR }}/minio-loong64-${{ env.MINIO_BRANCH }}-debian.tar" \
+            --output type=docker,dest="minio-loong64-${{ env.MINIO_BRANCH }}-debian.tar" \
             .
           echo "=== Built Debian image ==="
-          TAR_FILE="${{ env.OUTDIR }}/minio-loong64-${{ env.MINIO_BRANCH }}-debian.tar"
+          TAR_FILE="minio-loong64-${{ env.MINIO_BRANCH }}-debian.tar"
           ls -lh "${TAR_FILE}"
           echo "=== Inspect tar contents ==="
           tar -tf "${TAR_FILE}"
@@ -256,20 +253,19 @@ jobs:
         with:
           name: minio-loong64-docker-image-debian
           path: |
-            ${{ env.OUTDIR }}/minio-loong64-${{ env.MINIO_BRANCH }}-debian.tar
+            minio/minio-loong64-${{ env.MINIO_BRANCH }}-debian.tar
       - name: Build and export Docker image (Debian Slim)
         working-directory: minio
         run: |
-          mkdir -p "${{ env.OUTDIR }}"
           docker buildx build --no-cache \
             --build-arg RELEASE="${{ env.MINIO_BRANCH }}" \
             --build-arg BASE_IMAGE="${{ env.DEBIAN_IMAGE }}:${{ env.DEBIAN_TAG_SLIM }}" \
             --platform=linux/loong64 \
             -f Dockerfile.release \
-            --output type=docker,dest="${{ env.OUTDIR }}/minio-loong64-${{ env.MINIO_BRANCH }}-debian-slim.tar" \
+            --output type=docker,dest="minio-loong64-${{ env.MINIO_BRANCH }}-debian-slim.tar" \
             .
           echo "=== Built Debian Slim image ==="
-          TAR_FILE="${{ env.OUTDIR }}/minio-loong64-${{ env.MINIO_BRANCH }}-debian-slim.tar"
+          TAR_FILE="minio-loong64-${{ env.MINIO_BRANCH }}-debian-slim.tar"
           ls -lh "${TAR_FILE}"
           echo "=== Inspect tar contents ==="
           tar -tf "${TAR_FILE}"
@@ -292,7 +288,7 @@ jobs:
         with:
           name: minio-loong64-docker-image-debian-slim
           path: |
-            ${{ env.OUTDIR }}/minio-loong64-${{ env.MINIO_BRANCH }}-debian-slim.tar
+            minio/minio-loong64-${{ env.MINIO_BRANCH }}-debian-slim.tar
       - name: Export system version
         run: |
           cat /etc/os-release > /tmp/build-os-release.txt
