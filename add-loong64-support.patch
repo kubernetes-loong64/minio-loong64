@@ -72,3 +72,15 @@ index b2d052838..aa4d3a337 100644
  
  COPY CREDITS /licenses/CREDITS
  COPY LICENSE /licenses/LICENSE
+diff --git a/Makefile b/Makefile
+index c7ea4b275..3db7be514 100644
+--- a/Makefile
++++ b/Makefile
+@@ -1,6 +1,6 @@
+ PWD := $(shell pwd)
+ GOPATH := $(shell go env GOPATH)
+-LDFLAGS := $(shell go run buildscripts/gen-ldflags.go)
++LDFLAGS ?= $(shell go run buildscripts/gen-ldflags.go)
+ 
+ GOOS ?= $(shell go env GOOS)
+ GOARCH ?= $(shell go env GOARCH)

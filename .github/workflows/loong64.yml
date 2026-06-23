@@ -133,18 +133,21 @@ jobs:
           ls -la /run/docker.sock 2>/dev/null || echo "/run/docker.sock not found"
           echo "DOCKER_HOST=$DOCKER_HOST"
           docker info
+      - name: Apply patches
+        working-directory: minio
+        run: git apply ../*.patch
       - name: Build minio
         working-directory: minio
-        env:
-          GOOS: linux
-          GOARCH: loong64
-        run: make
+        run: |
+          LDFLAGS=$(go run buildscripts/gen-ldflags.go)
+          echo "LDFLAGS=$LDFLAGS"
+          GOOS=linux GOARCH=loong64 LDFLAGS="$LDFLAGS" make
       - name: Build mc
         working-directory: mc
-        env:
-          GOOS: linux
-          GOARCH: loong64
-        run: make
+        run: |
+          LDFLAGS=$(go run buildscripts/gen-ldflags.go)
+          echo "LDFLAGS=$LDFLAGS"
+          GOOS=linux GOARCH=loong64 LDFLAGS="$LDFLAGS" make
       - name: Print binary SHA-256 checksums
         run: |
           find minio/minio | xargs sha256sum
@@ -174,9 +177,6 @@ jobs:
         run: |
           ./mc -v
           ./mc -h
-      - name: Apply patches
-        working-directory: minio
-        run: git apply ../*.patch
       - name: Copy mc binary for Docker build
         run: |
           cp mc/mc minio/mc
