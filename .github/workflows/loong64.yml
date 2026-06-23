@@ -1,0 +1,226 @@
+name: loong64
+on:
+  push:
+    branches:
+      - loong64-*
+    tags:
+      - release-loong64-*
+  pull_request:
+    branches:
+      - loong64-*
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    container: debian:13
+    env:
+      MINIO_REF: 7aac2a2
+    outputs:
+      RAW_VERSION: ${{ steps.extract.outputs.RAW_VERSION }}
+      MINIO_BRANCH: ${{ steps.extract.outputs.MINIO_BRANCH }}
+      RELEASE: ${{ steps.extract.outputs.RELEASE }}
+      IS_STABLE: ${{ steps.extract.outputs.IS_STABLE }}
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - name: Print branch name
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            echo "${{ github.base_ref }} (PR target)"
+          else
+            echo ${{ github.ref_name }}
+          fi
+      - name: Extract minio branch
+        id: extract
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            REF=${{ github.base_ref }}
+          else
+            REF=${{ github.ref_name }}
+          fi
+          echo "REF=$REF"
+          RAW_VERSION=$(echo $REF | awk -F'loong64-' '{print $2}')
+          echo "RAW_VERSION=$RAW_VERSION"
+          echo "RAW_VERSION=$RAW_VERSION" >> ${GITHUB_ENV}
+          echo "RAW_VERSION=$RAW_VERSION" >> ${GITHUB_OUTPUT}
+          MINIO_BRANCH=$(echo $RAW_VERSION | awk -F'+' '{print $1}')
+          echo "MINIO_BRANCH=$MINIO_BRANCH"
+          echo "MINIO_BRANCH=$MINIO_BRANCH" >> ${GITHUB_ENV}
+          echo "MINIO_BRANCH=$MINIO_BRANCH" >> ${GITHUB_OUTPUT}
+          RELEASE=$(echo $RAW_VERSION | awk -F'+' '{print $2}')
+          RELEASE=${RELEASE:-alpha.${{ github.run_number }}}
+          echo "RELEASE=$RELEASE"
+          echo "RELEASE=$RELEASE" >> ${GITHUB_ENV}
+          echo "RELEASE=$RELEASE" >> ${GITHUB_OUTPUT}
+          if echo "$RAW_VERSION" | grep -qE '[+].*(alpha|beta|rc)'; then
+            IS_STABLE=false
+          else
+            IS_STABLE=true
+          fi
+          echo "IS_STABLE=$IS_STABLE"
+          echo "IS_STABLE=$IS_STABLE" >> ${GITHUB_OUTPUT}
+      - name: Install build tools
+        run: |
+          apt update
+          apt install -y git make golang file
+      - name: Clone minio
+        run: |
+          git clone --branch ${{ env.MINIO_BRANCH }} https://github.com/minio/minio.git minio
+          cd minio
+          git checkout ${{ env.MINIO_REF }}
+          MINIO_REF_DATE=$(git log -1 --format=%ct | xargs -I{} date -u -d @{} +%Y-%m-%dT%H-%M-%SZ)
+          echo "MINIO_REF_DATE=$MINIO_REF_DATE"
+          echo "MINIO_REF_DATE=$MINIO_REF_DATE" >> ${GITHUB_ENV}
+      - name: Validate MinIO version
+        run: |
+          if [ "${{ env.MINIO_REF_DATE }}" = "${{ env.MINIO_BRANCH }}" ]; then
+            echo "✅ MINIO_REF_DATE (${{ env.MINIO_REF_DATE }}) matches MINIO_BRANCH (${{ env.MINIO_BRANCH }})"
+          else
+            echo "❌ MINIO_REF_DATE (${{ env.MINIO_REF_DATE }}) does NOT match MINIO_BRANCH (${{ env.MINIO_BRANCH }})"
+            exit 1
+          fi
+      - name: ls
+        run: ls -lah
+      - name: Install Docker CLI
+        run: |
+          apt remove $(dpkg --get-selections docker.io docker-compose docker-doc podman-docker containerd runc | cut -f1)
+          apt update
+          apt install -y ca-certificates curl
+          install -m 0755 -d /etc/apt/keyrings
+          curl -fsSL https://download.docker.com/linux/debian/gpg -o /etc/apt/keyrings/docker.asc
+          chmod a+r /etc/apt/keyrings/docker.asc
+          # Add the repository to Apt sources:
+          tee /etc/apt/sources.list.d/docker.sources <<EOF
+          Types: deb
+          URIs: https://download.docker.com/linux/debian
+          Suites: $(. /etc/os-release && echo "$VERSION_CODENAME")
+          Components: stable
+          Architectures: $(dpkg --print-architecture)
+          Signed-By: /etc/apt/keyrings/docker.asc
+          EOF
+          apt update
+          apt install -y docker-ce-cli
+      - name: Verify Docker installation
+        run: |
+          ls -la /run/docker.sock 2>/dev/null || echo "/run/docker.sock not found"
+          echo "DOCKER_HOST=$DOCKER_HOST"
+          docker info
+      #- name: Apply patches
+      #  working-directory: minio
+      #  run: git apply ../*.patch
+      - name: Build minio
+        working-directory: minio
+        env:
+          GOOS: linux
+          GOARCH: loong64
+        run: make
+      - name: Print binary SHA-256 checksums
+        working-directory: minio
+        run: |
+          find minio | xargs sha256sum
+      - name: Inspect binary file types
+        working-directory: minio
+        run: |
+          echo "=== bin ==="
+          file minio
+      - name: Upload binaries
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: minio-loong64-binaries
+          path: |
+            minio/minio
+      - name: Install QEMU binfmt for loong64
+        run: |
+          docker run --privileged --rm ghcr.io/loong64/binfmt --install all
+      - name: Print docker version
+        working-directory: minio
+        run: |
+          ./minio -v
+          ./minio -h
+      - name: Export system version
+        run: |
+          cat /etc/os-release > /tmp/build-os-release.txt
+          cat /tmp/build-os-release.txt
+      - name: Export installed packages
+        run: |
+          dpkg -l > /tmp/build-installed-packages.txt
+          cat /tmp/build-installed-packages.txt
+      - name: Upload system info
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: minio-loong64-system-info
+          path: |
+            /tmp/build-installed-packages.txt
+            /tmp/build-os-release.txt
+
+  release:
+    if: startsWith(github.ref, 'refs/tags/')
+    needs: [ build ]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    env:
+      IS_STABLE: ${{ needs.build.outputs.IS_STABLE }}
+      BASE_URL: https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}
+    steps:
+      - name: Download binaries
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: minio-loong64-binaries
+          path: loong64-artifacts
+      - name: Download system info
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: minio-loong64-system-info
+          path: loong64-artifacts
+      - name: List release artifacts
+        run: |
+          find loong64-artifacts -type f
+      - name: Import GPG key
+        run: |
+          export LANG=C.UTF-8
+          echo "${{ secrets.GPG_PRIVATE_KEY_BASE64 }}" | base64 -d | gpg --batch --import > /dev/null
+          echo "$(gpg --list-secret-keys --keyid-format LONG | grep -Eo '[A-F0-9]{40}' | head -1):6:" | gpg --import-ownertrust
+      - name: Sign artifacts
+        run: |
+          find loong64-artifacts -type f | while read -r file; do
+            gpg --batch --detach-sign --armor "$file"
+            echo "Signed: $file"
+            gpg --verify "$file".asc "$file"
+          done
+      - name: Generate release body
+        run: |
+          cat > release-body.md <<'BODYEOF'
+          ## Artifacts
+          
+          | File    | Download                           |
+          |---------|------------------------------------|
+          | `minio` | [minio](${{ env.BASE_URL }}/minio) |
+
+          Each file has a corresponding `.asc` detached GPG signature.
+          
+          ```shell
+          # Binary
+          curl -LO ${{ env.BASE_URL }}/minio
+          curl -LO ${{ env.BASE_URL }}/minio.asc
+          ```
+          
+          ## Verifying releases
+          
+          ```shell
+          gpg --keyserver keys.openpgp.org --recv-keys FCF8724722CCBF9F51B1FBE376532BE7E3013105
+          echo "FCF8724722CCBF9F51B1FBE376532BE7E3013105:6:" | gpg --import-ownertrust
+          gpg --verify <file>.asc <file>
+          ```
+          BODYEOF
+      - name: Create Release
+        uses: softprops/action-gh-release@b4309332981a82ec1c5618f44dd2e27cc8bfbfda # v3.0.0
+        with:
+          name: ${{ github.ref_name }}
+          body_path: release-body.md
+          prerelease: ${{ env.IS_STABLE == 'false' }}
+          make_latest: ${{ env.IS_STABLE == 'true' && 'legacy' || 'false' }}
+          files: |
+            loong64-artifacts/**
