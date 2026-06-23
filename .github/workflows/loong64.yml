@@ -67,7 +67,7 @@ jobs:
           apt install -y git make golang file
       - name: Clone minio
         run: |
-          git clone --branch ${{ env.MINIO_BRANCH }} https://github.com/minio/minio.git minio
+          git clone https://github.com/minio/minio.git minio
           cd minio
           git checkout ${{ env.MINIO_REF }}
           MINIO_REF_DATE=$(git log -1 --format=%ct | xargs -I{} date -u -d @{} +%Y-%m-%dT%H-%M-%SZ)
