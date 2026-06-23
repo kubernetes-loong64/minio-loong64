@@ -1,0 +1,12 @@
+diff --git a/Makefile b/Makefile
+index 2112dfa8..c4842aeb 100644
+--- a/Makefile
++++ b/Makefile
+@@ -1,6 +1,6 @@
+ PWD := $(shell pwd)
+ GOPATH := $(shell go env GOPATH)
+-LDFLAGS := $(shell go run buildscripts/gen-ldflags.go)
++LDFLAGS ?= $(shell go run buildscripts/gen-ldflags.go)
+ 
+ TARGET_GOARCH ?= $(shell go env GOARCH)
+ TARGET_GOOS ?= $(shell go env GOOS)

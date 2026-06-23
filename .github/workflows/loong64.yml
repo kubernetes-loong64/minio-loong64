@@ -133,15 +133,18 @@ jobs:
           ls -la /run/docker.sock 2>/dev/null || echo "/run/docker.sock not found"
           echo "DOCKER_HOST=$DOCKER_HOST"
           docker info
-      - name: Apply patches
+      - name: Apply minio patches
         working-directory: minio
-        run: git apply ../*.patch
+        run: git apply ../minio-add-loong64-support.patch
       - name: Build minio
         working-directory: minio
         run: |
           LDFLAGS=$(go run buildscripts/gen-ldflags.go)
           echo "LDFLAGS=$LDFLAGS"
           GOOS=linux GOARCH=loong64 LDFLAGS="$LDFLAGS" make
+      - name: Apply mc patches
+        working-directory: mc
+        run: git apply ../mc-add-loong64-support.patch
       - name: Build mc
         working-directory: mc
         run: |
