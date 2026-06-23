@@ -1,5 +1,5 @@
 diff --git a/Dockerfile.release b/Dockerfile.release
-index b2d052838..907a8c096 100644
+index b2d052838..aa4d3a337 100644
 --- a/Dockerfile.release
 +++ b/Dockerfile.release
 @@ -1,4 +1,5 @@
@@ -9,7 +9,7 @@ index b2d052838..907a8c096 100644
  
  ARG TARGETARCH
  ARG RELEASE
-@@ -12,35 +13,21 @@ WORKDIR /build
+@@ -12,35 +13,23 @@ WORKDIR /build
  RUN apk add -U --no-cache ca-certificates && \
      apk add -U --no-cache curl && \
      apk add -U --no-cache bash && \
@@ -46,14 +46,14 @@ index b2d052838..907a8c096 100644
  ARG RELEASE
  
  LABEL name="MinIO" \
--      vendor="MinIO Inc <dev@min.io>" \
--      maintainer="MinIO Inc <dev@min.io>" \
-+      vendor="徐晓伟 <xuxiaowei@xuxiaowei.com.cn>" \
-+      maintainer="徐晓伟 <xuxiaowei@xuxiaowei.com.cn>" \
+       vendor="MinIO Inc <dev@min.io>" \
+       maintainer="MinIO Inc <dev@min.io>" \
++      loong64.vendor="徐晓伟 <xuxiaowei@xuxiaowei.com.cn>" \
++      loong64.maintainer="徐晓伟 <xuxiaowei@xuxiaowei.com.cn>" \
        version="${RELEASE}" \
        release="${RELEASE}" \
        summary="MinIO is a High Performance Object Storage, API compatible with Amazon S3 cloud storage service." \
-@@ -55,12 +42,15 @@ ENV MINIO_ACCESS_KEY_FILE=access_key \
+@@ -55,12 +44,15 @@ ENV MINIO_ACCESS_KEY_FILE=access_key \
      MINIO_CONFIG_ENV_FILE=config.env \
      MC_CONFIG_DIR=/tmp/.mc
  
