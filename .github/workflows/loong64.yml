@@ -22,9 +22,7 @@ jobs:
     runs-on: ubuntu-latest
     container: debian:13
     env:
-      MINIO_REF: 7aac2a2
-      MC_BRANCH: 2025-11-06T16-25-29Z
-      MC_REF: 77f82e1
+      MC_BRANCH: RELEASE.2025-04-16T18-13-26Z
     outputs:
       RAW_VERSION: ${{ steps.extract.outputs.RAW_VERSION }}
       MINIO_BRANCH: ${{ steps.extract.outputs.MINIO_BRANCH }}
@@ -77,36 +75,10 @@ jobs:
           apt install -y git make golang file jq
       - name: Clone minio
         run: |
-          git clone https://github.com/minio/minio.git minio
-          cd minio
-          git checkout ${{ env.MINIO_REF }}
-          MINIO_REF_DATE=$(git log -1 --format=%ct | xargs -I{} date -u -d @{} +%Y-%m-%dT%H-%M-%SZ)
-          echo "MINIO_REF_DATE=$MINIO_REF_DATE"
-          echo "MINIO_REF_DATE=$MINIO_REF_DATE" >> ${GITHUB_ENV}
-      - name: Validate MinIO version
-        run: |
-          if [ "${{ env.MINIO_REF_DATE }}" = "${{ env.MINIO_BRANCH }}" ]; then
-            echo "✅ MINIO_REF_DATE (${{ env.MINIO_REF_DATE }}) matches MINIO_BRANCH (${{ env.MINIO_BRANCH }})"
-          else
-            echo "❌ MINIO_REF_DATE (${{ env.MINIO_REF_DATE }}) does NOT match MINIO_BRANCH (${{ env.MINIO_BRANCH }})"
-            exit 1
-          fi
+          git clone --branch RELEASE.${{ env.MINIO_BRANCH }} https://github.com/minio/minio.git minio
       - name: Clone mc
         run: |
-          git clone https://github.com/minio/mc.git mc
-          cd mc
-          git checkout ${{ env.MC_REF }}
-          MC_REF_DATE=$(git log -1 --format=%ct | xargs -I{} date -u -d @{} +%Y-%m-%dT%H-%M-%SZ)
-          echo "MC_REF_DATE=$MC_REF_DATE"
-          echo "MC_REF_DATE=$MC_REF_DATE" >> ${GITHUB_ENV}
-      - name: Validate mc version
-        run: |
-          if [ "${{ env.MC_REF_DATE }}" = "${{ env.MC_BRANCH }}" ]; then
-            echo "✅ MC_REF_DATE (${{ env.MC_REF_DATE }}) matches MC_BRANCH (${{ env.MC_BRANCH }})"
-          else
-            echo "❌ MC_REF_DATE (${{ env.MC_REF_DATE }}) does NOT match MC_BRANCH (${{ env.MC_BRANCH }})"
-            exit 1
-          fi
+          git clone --branch ${{ env.MC_BRANCH }} https://github.com/minio/mc.git mc
       - name: ls
         run: ls -lah
       - name: Install Docker CLI
